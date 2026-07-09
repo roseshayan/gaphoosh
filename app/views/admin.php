@@ -51,5 +51,17 @@
                 <div class="table-wrap"><table id="logsTable"><thead><tr><th>زمان</th><th>کاربر</th><th>مدل</th><th>وضعیت</th><th>خطا</th></tr></thead><tbody></tbody></table></div>
             </div>
         </section>
+
+        <section class="admin-grid-two">
+            <div class="admin-panel">
+                <div class="panel-head"><h2>لاگ امنیتی</h2><p>ورود ناموفق، OTP، rate limit و سوءاستفاده</p></div>
+                <div class="table-wrap"><table id="securityLogsTable"><thead><tr><th>زمان</th><th>رخداد</th><th>موبایل/IP</th><th>جزئیات</th></tr></thead><tbody></tbody></table></div>
+            </div>
+            <div class="admin-panel">
+                <div class="panel-head"><h2>Backup و مصرف روزانه</h2><p>آخرین backupها و مانیتورینگ مصرف توکن</p></div>
+                <div class="table-wrap"><table id="backupLogsTable"><thead><tr><th>زمان</th><th>وضعیت</th><th>فایل</th><th>حجم</th></tr></thead><tbody></tbody></table></div>
+                <div class="table-wrap mini-table"><table id="tokenDailyTable"><thead><tr><th>روز</th><th>درخواست</th><th>توکن</th><th>خطا</th></tr></thead><tbody></tbody></table></div>
+            </div>
+        </section>
     </main>
 </div>

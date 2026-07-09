@@ -6,3 +6,13 @@
 !.gitkeep
 .DS_Store
 Thumbs.db
+
+.env.*
+!.env.example
+/public/hot
+/storage/cache/*.json
+/npm-debug.log*
+/yarn-error.log*
+/.idea/
+/.vscode//storage/backups/*
+!/storage/backups/.gitkeep

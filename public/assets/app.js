@@ -225,6 +225,65 @@
     }
   });
 
+
+  const initRegisterOtp = () => {
+    const form = qs('#registerForm');
+    if (!form) return;
+    const baseUrl = form.dataset.baseUrl.replace(/\/$/, '');
+    const mobileInput = qs('#registerMobile', form);
+    const sendBtn = qs('#sendOtpBtn', form);
+    const status = qs('#otpStatus', form);
+    let cooldown = 0;
+    let timer = null;
+
+    const setStatus = (text, kind = '') => {
+      status.textContent = text;
+      status.classList.remove('ok', 'bad');
+      if (kind) status.classList.add(kind);
+    };
+
+    const tick = () => {
+      if (cooldown <= 0) {
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'ارسال کد';
+        clearInterval(timer);
+        timer = null;
+        return;
+      }
+      sendBtn.disabled = true;
+      sendBtn.textContent = `ارسال دوباره (${cooldown})`;
+      cooldown -= 1;
+    };
+
+    sendBtn.addEventListener('click', async () => {
+      const mobile = mobileInput.value.trim();
+      if (!mobile) {
+        setStatus('اول شماره موبایل را وارد کن.', 'bad');
+        mobileInput.focus();
+        return;
+      }
+      sendBtn.disabled = true;
+      setStatus('در حال ارسال کد تأیید…');
+      try {
+        const response = await fetch(baseUrl + '/api/auth/send-otp', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+          body: JSON.stringify({ mobile })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'ارسال کد ناموفق بود.');
+        setStatus(data.dev_code ? `کد تست: ${data.dev_code}` : (data.message || 'کد تأیید ارسال شد.'), 'ok');
+        cooldown = 120;
+        tick();
+        timer = setInterval(tick, 1000);
+      } catch (error) {
+        setStatus('خطا: ' + error.message, 'bad');
+        sendBtn.disabled = false;
+      }
+    });
+  };
+
   const initChat = () => {
     const app = qs('.chat-app');
     if (!app) return;
@@ -648,6 +707,9 @@
     const usersBody = qs('#usersTable tbody');
     const logsBody = qs('#logsTable tbody');
     const conversationsBody = qs('#conversationsTable tbody');
+    const securityLogsBody = qs('#securityLogsTable tbody');
+    const backupLogsBody = qs('#backupLogsTable tbody');
+    const tokenDailyBody = qs('#tokenDailyTable tbody');
     const status = qs('#adminStatus');
     const refresh = qs('#refreshAdmin');
     const runDahlDiagnostic = qs('#runDahlDiagnostic');
@@ -663,12 +725,12 @@
 
     const statLabel = {
       users_total: 'کل کاربران', users_active: 'کاربر فعال', users_blocked: 'کاربر مسدود', admins: 'ادمین‌ها',
-      conversations_total: 'گفتگوها', messages_total: 'پیام‌ها', tokens_total: 'توکن مصرفی', messages_today: 'پیام امروز', api_errors_24h: 'خطای ۲۴ ساعت'
+      conversations_total: 'گفتگوها', messages_total: 'پیام‌ها', tokens_total: 'توکن مصرفی', messages_today: 'پیام امروز', api_errors_24h: 'خطای ۲۴ ساعت', security_events_24h: 'رخداد امنیتی ۲۴ساعت', last_backup_status: 'آخرین Backup'
     };
 
     const render = (data) => {
       statGrid.innerHTML = Object.entries(data.stats || {}).map(([key, value]) => `
-        <article><span>${escapeHtml(statLabel[key] || key)}</span><strong>${formatNumber(value)}</strong></article>
+        <article><span>${escapeHtml(statLabel[key] || key)}</span><strong>${Number.isFinite(Number(value)) ? formatNumber(value) : escapeHtml(value)}</strong></article>
       `).join('');
 
       usersBody.innerHTML = (data.users || []).map((user) => `
@@ -703,6 +765,33 @@
           <td>${escapeHtml(log.model)}</td>
           <td><span class="badge ${Number(log.success) === 1 ? 'ok' : 'bad'}">${Number(log.success) === 1 ? 'موفق' : 'خطا'} · ${escapeHtml(log.status_code)}</span></td>
           <td>${escapeHtml(log.error_message || '-')}</td>
+        </tr>
+      `).join('');
+
+      securityLogsBody.innerHTML = (data.security_logs || []).map((item) => `
+        <tr>
+          <td>${escapeHtml(formatDate(item.created_at))}</td>
+          <td><span class="badge ${String(item.event_type || '').includes('failed') || String(item.event_type || '').includes('limited') ? 'bad' : 'ok'}">${escapeHtml(item.event_type)}</span></td>
+          <td><small dir="ltr">${escapeHtml(item.mobile || '-')}</small><small dir="ltr">${escapeHtml(item.ip_address || '-')}</small></td>
+          <td>${escapeHtml(item.meta || '-')}</td>
+        </tr>
+      `).join('');
+
+      backupLogsBody.innerHTML = (data.backup_logs || []).map((item) => `
+        <tr>
+          <td>${escapeHtml(formatDate(item.created_at))}</td>
+          <td><span class="badge ${item.status === 'success' ? 'ok' : 'bad'}">${item.status === 'success' ? 'موفق' : 'ناموفق'}</span></td>
+          <td><small dir="ltr">${escapeHtml(item.file_path || '-')}</small>${item.error_message ? `<small>${escapeHtml(item.error_message)}</small>` : ''}</td>
+          <td>${formatNumber(item.file_size || 0)}</td>
+        </tr>
+      `).join('');
+
+      tokenDailyBody.innerHTML = (data.token_usage_daily || []).map((item) => `
+        <tr>
+          <td>${escapeHtml(item.day || '-')}</td>
+          <td>${formatNumber(item.requests)}</td>
+          <td>${formatNumber(item.total_tokens)}</td>
+          <td>${formatNumber(item.errors)}</td>
         </tr>
       `).join('');
     };
@@ -749,6 +838,7 @@
     load().catch((error) => { status.textContent = 'خطا: ' + error.message; });
   };
 
+  initRegisterOtp();
   initChat();
   initAdmin();
 })();

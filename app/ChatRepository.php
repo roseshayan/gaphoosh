@@ -121,6 +121,16 @@ final class ChatRepository
         return (int) ($row['count_messages'] ?? 0);
     }
 
+
+    public function longUserPromptsToday(int $userId, int $minChars): int
+    {
+        $row = $this->db->fetch(
+            'SELECT COUNT(*) AS count_messages FROM messages WHERE user_id = :user_id AND role = \'user\' AND CHAR_LENGTH(content) >= :min_chars AND created_at >= CURDATE()',
+            ['user_id' => $userId, 'min_chars' => max(1, $minChars)]
+        );
+        return (int) ($row['count_messages'] ?? 0);
+    }
+
     public function firstUserMessageCount(int $conversationId): int
     {
         $row = $this->db->fetch(

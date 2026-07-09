@@ -7,6 +7,7 @@
         <a href="#usecases">کاربردها</a>
         <a href="#features">امکانات</a>
         <a href="#security">امنیت</a>
+        <a href="<?= h(public_url('contact')) ?>">ارتباط با ما</a>
         <a href="<?= h(public_url('login')) ?>">ورود</a>
         <a class="btn small primary" href="<?= h(public_url('register')) ?>">شروع رایگان</a>
     </nav>
@@ -100,5 +101,5 @@
 
 <footer class="site-footer">
     <span>© <?= date('Y') ?> گپ‌هوش</span>
-    <span>هوش مصنوعی فارسی در gaphoosh.ir</span>
+    <span><a href="<?= h(public_url('contact')) ?>">ارتباط با ما</a> · <a href="<?= h(public_url('terms')) ?>">قوانین</a> · <a href="<?= h(public_url('privacy')) ?>">حریم خصوصی</a></span>
 </footer>

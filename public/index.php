@@ -7,6 +7,10 @@ use App\Auth;
 use App\ChatRepository;
 use App\DahlClient;
 use App\Database;
+use App\MeliPayamakClient;
+use App\OtpService;
+use App\RateLimiter;
+use App\SecurityLogger;
 
 require dirname(__DIR__) . '/app/bootstrap.php';
 
@@ -18,6 +22,9 @@ $auth = new Auth($db);
 $chats = new ChatRepository($db);
 $adminRepo = new AdminRepository($db);
 $dahl = new DahlClient();
+$rateLimiter = new RateLimiter($db);
+$securityLogger = new SecurityLogger($db);
+$otpService = new OtpService($db, new MeliPayamakClient(), $securityLogger);
 
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $path = '/' . trim($uri, '/');
@@ -36,6 +43,35 @@ try {
         ]);
     }
 
+
+
+    if ($method === 'GET' && $path === '/terms') {
+        view('terms', [
+            'title' => 'قوانین استفاده | گپ‌هوش',
+            'description' => 'قوانین استفاده از سرویس هوش مصنوعی فارسی گپ‌هوش، محدودیت‌ها، مسئولیت کاربر و شرایط استفاده.',
+            'bodyClass' => 'landing-body legal-body',
+            'nonce' => $nonce,
+        ]);
+    }
+
+    if ($method === 'GET' && $path === '/privacy') {
+        view('privacy', [
+            'title' => 'حریم خصوصی | گپ‌هوش',
+            'description' => 'سیاست حریم خصوصی گپ‌هوش درباره ذخیره شماره موبایل، گفتگوها، لاگ‌های امنیتی و مصرف API.',
+            'bodyClass' => 'landing-body legal-body',
+            'nonce' => $nonce,
+        ]);
+    }
+
+    if ($method === 'GET' && $path === '/contact') {
+        view('contact', [
+            'title' => 'ارتباط با ما | گپ‌هوش',
+            'description' => 'راه‌های ارتباط با گپ‌هوش؛ ایمیل، تلگرام و گیت‌هاب برای پشتیبانی، همکاری و گزارش مشکل.',
+            'bodyClass' => 'landing-body contact-body',
+            'nonce' => $nonce,
+        ]);
+    }
+
     if ($method === 'GET' && $path === '/login') {
         if (current_user()) {
             redirect_to(public_url('chat'));
@@ -50,10 +86,17 @@ try {
 
     if ($method === 'POST' && $path === '/login') {
         verify_csrf();
+        $mobileForLog = normalize_mobile((string) ($_POST['mobile'] ?? ''));
         try {
-            $auth->login((string) ($_POST['mobile'] ?? ''), (string) ($_POST['password'] ?? ''));
+            $rateLimiter->hit('login:ip:' . client_ip(), (int) config('rate_login_ip_per_10min'), 600, 900);
+            if ($mobileForLog !== '') {
+                $rateLimiter->hit('login:mobile:' . $mobileForLog, (int) config('rate_login_mobile_per_10min'), 600, 900);
+            }
+            $loggedUser = $auth->login((string) ($_POST['mobile'] ?? ''), (string) ($_POST['password'] ?? ''));
+            $securityLogger->log('login_success', (int) $loggedUser['id'], $mobileForLog);
             redirect_to(public_url('chat'));
         } catch (Throwable $e) {
+            $securityLogger->log('login_failed', null, $mobileForLog, ['error' => $e->getMessage()]);
             view('login', [
                 'title' => 'ورود به گپ‌هوش',
                 'description' => 'ورود به پنل گفت‌وگو با هوش مصنوعی فارسی گپ‌هوش.',
@@ -79,15 +122,20 @@ try {
 
     if ($method === 'POST' && $path === '/register') {
         verify_csrf();
+        $mobileForLog = normalize_mobile((string) ($_POST['mobile'] ?? ''));
         try {
-            $auth->register(
+            $rateLimiter->hit('register:ip:' . client_ip(), 12, 3600, 1800);
+            $otpService->verify($mobileForLog, (string) ($_POST['otp_code'] ?? ''), 'register');
+            $registeredUser = $auth->register(
                 (string) ($_POST['name'] ?? ''),
                 (string) ($_POST['mobile'] ?? ''),
                 (string) ($_POST['email'] ?? ''),
                 (string) ($_POST['password'] ?? '')
             );
+            $securityLogger->log('register_success', (int) $registeredUser['id'], $mobileForLog);
             redirect_to(public_url('chat'));
         } catch (Throwable $e) {
+            $securityLogger->log('register_failed', null, $mobileForLog, ['error' => $e->getMessage()]);
             view('register', [
                 'title' => 'ثبت‌نام در گپ‌هوش',
                 'description' => 'ثبت‌نام در گپ‌هوش و شروع چت با هوش مصنوعی فارسی.',
@@ -100,6 +148,28 @@ try {
                 ],
                 'nonce' => $nonce,
             ]);
+        }
+    }
+
+    if ($method === 'POST' && $path === '/api/auth/send-otp') {
+        verify_csrf();
+        $data = json_input();
+        $mobile = normalize_mobile((string) ($data['mobile'] ?? ''));
+        try {
+            $rateLimiter->hit('otp:ip:' . client_ip(), (int) config('rate_otp_ip_per_hour'), 3600, 1800);
+            $rateLimiter->hit('otp:mobile:' . $mobile, (int) config('rate_otp_mobile_per_10min'), 600, 900);
+            if ($db->fetch('SELECT id FROM users WHERE mobile = :mobile LIMIT 1', ['mobile' => $mobile])) {
+                json_response(['error' => 'این شماره قبلاً ثبت شده است. وارد حساب کاربری شوید.'], 409);
+            }
+            $otpService->send($mobile, 'register');
+            json_response([
+                'ok' => true,
+                'message' => 'کد تأیید ارسال شد. اعتبار کد حدود ' . (int) ((int) config('otp_ttl_seconds') / 60) . ' دقیقه است.',
+                'dev_code' => (bool) config('otp_dev_mode', false) ? ($_SESSION['_dev_otp_code'] ?? null) : null,
+            ]);
+        } catch (Throwable $e) {
+            $securityLogger->log('otp_send_failed', null, $mobile, ['error' => $e->getMessage()]);
+            json_response(['error' => $e->getMessage()], $e->getCode() === 429 ? 429 : 422);
         }
     }
 
@@ -200,6 +270,8 @@ try {
                 'balance' => $dahl->balance(),
                 'used_today' => $chats->userMessagesToday((int) $user['id']),
                 'max_daily_messages' => config('max_daily_messages'),
+                'max_input_chars' => config('max_input_chars'),
+                'long_prompt_chars' => config('long_prompt_chars'),
                 'user' => $user,
             ]);
         }
@@ -244,8 +316,24 @@ try {
             if ($content === '') {
                 json_response(['error' => 'پیام خالی است.'], 422);
             }
-            if (mb_strlen($content, 'UTF-8') > (int) config('max_input_chars')) {
+            $contentLength = mb_strlen($content, 'UTF-8');
+            if ($contentLength > (int) config('max_prompt_chars_hard')) {
+                $securityLogger->log('prompt_hard_limit', (int) $user['id'], (string) $user['mobile'], ['length' => $contentLength]);
+                json_response(['error' => 'پیام بیش از حد مجاز طولانی است. آن را کوتاه‌تر کن.'], 422);
+            }
+            if ($contentLength > (int) config('max_input_chars')) {
                 json_response(['error' => 'پیام خیلی طولانی است.'], 422);
+            }
+            if ($contentLength >= (int) config('long_prompt_chars') && $chats->longUserPromptsToday((int) $user['id'], (int) config('long_prompt_chars')) >= (int) config('long_prompt_daily_limit')) {
+                $securityLogger->log('long_prompt_abuse', (int) $user['id'], (string) $user['mobile'], ['length' => $contentLength]);
+                json_response(['error' => 'امروز تعداد پیام‌های خیلی طولانی شما بیش از حد مجاز شده است.'], 429);
+            }
+            try {
+                $rateLimiter->hit('chat:user:' . (int) $user['id'], (int) config('rate_chat_user_per_minute'), 60, 120);
+                $rateLimiter->hit('chat:ip:' . client_ip(), (int) config('rate_chat_ip_per_minute'), 60, 120);
+            } catch (Throwable $e) {
+                $securityLogger->log('rate_limited_chat', (int) $user['id'], (string) $user['mobile'], ['error' => $e->getMessage()]);
+                json_response(['error' => $e->getMessage()], 429);
             }
 
             $usedToday = $chats->userMessagesToday((int) $user['id']);
@@ -326,6 +414,7 @@ try {
     http_response_code(404);
     echo 'صفحه پیدا نشد.';
 } catch (Throwable $e) {
+    app_log('unhandled-exception', ['path' => $path, 'method' => $method, 'error' => $e->getMessage()]);
     if (str_starts_with($path, '/api/')) {
         json_response(['error' => (bool) config('app_debug') ? $e->getMessage() : 'خطای داخلی سرور.'], 500);
     }

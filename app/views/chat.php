@@ -15,6 +15,7 @@
         <div class="chat-list" id="conversationList" aria-label="فهرست گفتگوها"></div>
 
         <div class="sidebar-links">
+            <a class="btn ghost full" href="<?= h(public_url('contact')) ?>">ارتباط با ما</a>
             <?php if ((int) ($user['is_admin'] ?? 0) === 1): ?>
                 <a class="btn ghost full" href="<?= h(public_url('admin')) ?>">پنل مدیریت</a>
             <?php endif; ?>

@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /storage/
+Sitemap: https://gaphoosh.ir/sitemap.xml

@@ -138,12 +138,17 @@ function render_partial(string $viewFile, array $data): void
     require $viewFile;
 }
 
+function to_latin_digits(string $value): string
+{
+    $persian = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹','٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+    $latin = ['0','1','2','3','4','5','6','7','8','9','0','1','2','3','4','5','6','7','8','9'];
+    return str_replace($persian, $latin, $value);
+}
+
 function normalize_mobile(string $mobile): string
 {
     $mobile = trim($mobile);
-    $persian = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹','٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
-    $latin = ['0','1','2','3','4','5','6','7','8','9','0','1','2','3','4','5','6','7','8','9'];
-    $mobile = str_replace($persian, $latin, $mobile);
+    $mobile = to_latin_digits($mobile);
     $mobile = preg_replace('/[\s\-()]/', '', $mobile) ?? $mobile;
     if (str_starts_with($mobile, '+98')) {
         $mobile = '0' . substr($mobile, 3);
@@ -156,6 +161,52 @@ function normalize_mobile(string $mobile): string
 function is_valid_iran_mobile(string $mobile): bool
 {
     return (bool) preg_match('/^09\d{9}$/', $mobile);
+}
+
+
+function client_ip(): string
+{
+    $candidates = [];
+    if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+        $candidates[] = (string) $_SERVER['HTTP_CF_CONNECTING_IP'];
+    }
+    if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $parts = explode(',', (string) $_SERVER['HTTP_X_FORWARDED_FOR']);
+        $candidates[] = trim($parts[0] ?? '');
+    }
+    if (!empty($_SERVER['REMOTE_ADDR'])) {
+        $candidates[] = (string) $_SERVER['REMOTE_ADDR'];
+    }
+    foreach ($candidates as $ip) {
+        $ip = trim($ip);
+        if (filter_var($ip, FILTER_VALIDATE_IP)) {
+            return $ip;
+        }
+    }
+    return '0.0.0.0';
+}
+
+function app_log(string $event, array $context = []): void
+{
+    $dir = base_path('storage/logs');
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+    $line = json_encode([
+        'time' => date('c'),
+        'event' => $event,
+        'ip' => client_ip(),
+        'context' => $context,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    @file_put_contents($dir . '/app.log', $line . PHP_EOL, FILE_APPEND | LOCK_EX);
+}
+
+function fail_json_or_throw(string $message, int $status = 400): never
+{
+    if (str_starts_with(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/', '/api/')) {
+        json_response(['error' => $message], $status);
+    }
+    throw new RuntimeException($message, $status);
 }
 
 function truncate_fa(string $text, int $length = 60): string

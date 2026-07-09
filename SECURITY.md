@@ -53,3 +53,23 @@ APP_URL="https://gaphoosh.ir"
 ```
 
 در production هرگز خطای خام PHP را به کاربر نشان نده.
+
+## Production security controls
+
+- OTP codes are stored as password hashes, not plaintext.
+- Registration requires verified mobile number.
+- Failed login, OTP failures, rate limit events and suspicious long prompts are logged in `security_logs`.
+- Chat endpoints are rate-limited by user and IP.
+- OTP endpoints are rate-limited by mobile and IP.
+- Very long prompts are blocked or limited to reduce API-cost abuse.
+- MySQL backups are stored under `storage/backups/` and must never be served publicly or committed to Git.
+
+## MeliPayamak API key
+
+Store the MeliPayamak API key only in `.env`:
+
+```env
+MELIPAYAMAK_API_KEY="..."
+```
+
+Never commit it to GitHub. Never put it in frontend JavaScript.

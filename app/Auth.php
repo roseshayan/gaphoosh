@@ -36,7 +36,7 @@ final class Auth
 
         try {
             $userId = $this->db->insert(
-                'INSERT INTO users (name, mobile, email, password_hash, status, is_admin, created_at, updated_at) VALUES (:name, :mobile, :email, :password_hash, \'active\', :is_admin, NOW(), NOW())',
+                'INSERT INTO users (name, mobile, email, password_hash, mobile_verified_at, status, is_admin, created_at, updated_at) VALUES (:name, :mobile, :email, :password_hash, NOW(), \'active\', :is_admin, NOW(), NOW())',
                 [
                     'name' => $name,
                     'mobile' => $mobile,

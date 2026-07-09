@@ -11,9 +11,11 @@
 - بدون CDN
 - API سازگار با OpenAI از Dahl
 
-## امکانات نسخه 4.0
+## امکانات نسخه 1.0.0
 
 - لندینگ پیج جدید، ریسپانسیو، فارسی، سبک و سئو شده
+- صفحه ارتباط با ما در `/contact` با ایمیل، تلگرام و گیت‌هاب
+- فایل‌های راهنمای GitHub Release و Deploy روی Ubuntu 24.04
 - لوگوی گپ‌هوش داخل پروژه: `public/assets/img/logo.png`
 - فونت Vazir/Vazirmatn از NPM و به‌صورت local
 - ثبت‌نام با شماره موبایل اجباری
@@ -148,11 +150,30 @@ http://gaphoosh.test
 /login                    ورود
 /chat                     پنل چت
 /admin                    پنل مدیریت
+/contact                  ارتباط با ما
 /api/bootstrap            مدل‌ها، گفتگوها، سهمیه و موجودی
 /api/chat/stream          ارسال پیام و دریافت پاسخ استریم
 /api/admin/dashboard      داده‌های پنل مدیریت
 /api/admin/dahl-diagnostics عیب‌یابی اتصال Dahl
 ```
+
+## انتشار و Deploy
+
+برای انتشار محصول واقعی، این دو فایل را بخوان:
+
+```text
+docs/GITHUB_RELEASE.md
+docs/DEPLOY_UBUNTU_24.md
+```
+
+چند قانون مهم:
+
+- `.env`، توکن‌ها و credentialها را هرگز commit نکن.
+- روی سرور production مقدار `APP_DEBUG=false` باشد.
+- `FIRST_REGISTERED_USER_IS_ADMIN=false` باشد.
+- Document Root باید فقط پوشه `public` باشد.
+- برای Cloudflare، مسیرهای `/api/*`, `/chat*`, `/admin*`, `/login*`, `/register*` را cache نکن.
+- برای استریم SSE در Nginx، `fastcgi_buffering off` روی `/api/chat/stream` لازم است.
 
 ## درباره خطای Dahl 403
 
@@ -303,3 +324,111 @@ php tools/dahl-diagnose.php
 ### درباره Web Search
 
 در مستندات فعلی Dahl که پروژه بر اساس آن پیاده‌سازی شده، endpoint مستقلی برای Web Search یا پارامتر رسمی web_search معرفی نشده است. اگر این قابلیت در UI خود Dahl وجود دارد، ممکن است قابلیت داخلی همان UI باشد و نه API عمومی. برای اضافه کردن Web Search در گپ‌هوش، بهتر است یک provider مستقل مثل Tavily، Brave Search API، Serper یا Bing اضافه شود و نتیجه جستجو به‌صورت context به مدل Dahl داده شود.
+
+## Production hardening added in v1.1.0
+
+### MeliPayamak OTP
+
+Registration now requires a real SMS OTP. Put your MeliPayamak API key in `.env`:
+
+```env
+MELIPAYAMAK_API_KEY="your-melipayamak-api-key"
+MELIPAYAMAK_SSL_VERIFY=true
+OTP_TTL_SECONDS=120
+OTP_MAX_ATTEMPTS=5
+OTP_DEV_MODE=false
+```
+
+For local UI testing without SMS credit, you can temporarily set:
+
+```env
+OTP_DEV_MODE=true
+```
+
+Do not use `OTP_DEV_MODE=true` in production.
+
+### Rate limits and abuse limits
+
+```env
+RATE_CHAT_USER_PER_MINUTE=8
+RATE_CHAT_IP_PER_MINUTE=30
+RATE_LOGIN_IP_PER_10MIN=20
+RATE_LOGIN_MOBILE_PER_10MIN=8
+RATE_OTP_IP_PER_HOUR=12
+RATE_OTP_MOBILE_PER_10MIN=3
+MAX_INPUT_CHARS=12000
+MAX_PROMPT_CHARS_HARD=20000
+LONG_PROMPT_CHARS=7000
+LONG_PROMPT_DAILY_LIMIT=12
+```
+
+These limits are intentionally conservative. Raise them only after monitoring token usage and abuse attempts.
+
+### Security and monitoring
+
+The admin dashboard now shows:
+
+- Dahl/API errors
+- total token usage
+- daily token usage
+- failed login/OTP events
+- rate-limited chat events
+- backup status
+
+Security events are stored in `security_logs`. API usage is stored in `api_logs`.
+
+### MySQL backup
+
+Run a manual backup:
+
+```bash
+php tools/mysql-backup.php
+```
+
+Backups are written to:
+
+```text
+storage/backups/
+```
+
+They are excluded from Git. On Ubuntu, add this cron job for daily backups at 03:30:
+
+```bash
+sudo crontab -e
+```
+
+```cron
+30 3 * * * cd /var/www/gaphoosh && /usr/bin/php tools/mysql-backup.php >> storage/logs/backup.log 2>&1
+```
+
+Retention defaults to 7 days. Change it with:
+
+```env
+BACKUP_RETENTION_DAYS=7
+```
+
+### Legal pages
+
+The following pages are available:
+
+- `/terms`
+- `/privacy`
+- `/contact`
+
+Edit the text before public launch if you need stronger legal wording.
+
+### Test MeliPayamak connection
+
+Check SMS credit:
+
+```bash
+php tools/melipayamak-diagnose.php
+```
+
+Send a test OTP to a mobile number:
+
+```bash
+php tools/melipayamak-diagnose.php 09123456789
+```
+
+The response includes the code because the current MeliPayamak OTP API returns it. Do not expose this diagnostic tool publicly.

@@ -19,6 +19,9 @@ final class AdminRepository
             'users' => $this->users(),
             'logs' => $this->apiLogs(),
             'conversations' => $this->recentConversations(),
+            'security_logs' => $this->securityLogs(),
+            'backup_logs' => $this->backupLogs(),
+            'token_usage_daily' => $this->tokenUsageDaily(),
         ];
     }
 
@@ -29,6 +32,8 @@ final class AdminRepository
         $messages = $this->db->fetch('SELECT COUNT(*) AS total, COALESCE(SUM(total_tokens),0) AS tokens FROM messages') ?: [];
         $today = $this->db->fetch('SELECT COUNT(*) AS total FROM messages WHERE role = \'user\' AND created_at >= CURDATE()') ?: [];
         $errors = $this->db->fetch('SELECT COUNT(*) AS total FROM api_logs WHERE success = 0 AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)') ?: [];
+        $loginFailures = $this->db->fetch("SELECT COUNT(*) AS total FROM security_logs WHERE event_type IN ('login_failed','otp_failed') AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)") ?: [];
+        $lastBackup = $this->db->fetch('SELECT status, created_at FROM backup_logs ORDER BY id DESC LIMIT 1') ?: [];
 
         return [
             'users_total' => (int) ($users['total'] ?? 0),
@@ -40,6 +45,8 @@ final class AdminRepository
             'tokens_total' => (int) ($messages['tokens'] ?? 0),
             'messages_today' => (int) ($today['total'] ?? 0),
             'api_errors_24h' => (int) ($errors['total'] ?? 0),
+            'security_events_24h' => (int) ($loginFailures['total'] ?? 0),
+            'last_backup_status' => (string) ($lastBackup['status'] ?? 'none'),
         ];
     }
 
@@ -79,6 +86,39 @@ final class AdminRepository
              GROUP BY c.id
              ORDER BY c.updated_at DESC, c.id DESC
              LIMIT ' . max(1, $limit)
+        );
+    }
+
+
+    public function securityLogs(int $limit = 80): array
+    {
+        return $this->db->fetchAll(
+            'SELECT s.id, s.event_type, s.user_id, u.name, s.mobile, s.ip_address, s.user_agent, s.meta, s.created_at
+             FROM security_logs s
+             LEFT JOIN users u ON u.id = s.user_id
+             ORDER BY s.id DESC
+             LIMIT ' . max(1, $limit)
+        );
+    }
+
+    public function backupLogs(int $limit = 20): array
+    {
+        return $this->db->fetchAll(
+            'SELECT id, file_path, file_size, status, error_message, created_at
+             FROM backup_logs
+             ORDER BY id DESC
+             LIMIT ' . max(1, $limit)
+        );
+    }
+
+    public function tokenUsageDaily(int $days = 14): array
+    {
+        return $this->db->fetchAll(
+            'SELECT DATE(created_at) AS day, COUNT(*) AS requests, COALESCE(SUM(total_tokens),0) AS total_tokens, SUM(success = 0) AS errors
+             FROM api_logs
+             WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ' . max(1, $days) . ' DAY)
+             GROUP BY DATE(created_at)
+             ORDER BY day DESC'
         );
     }
 

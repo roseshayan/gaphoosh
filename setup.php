@@ -33,6 +33,9 @@ $indexExists = static function (PDO $pdo, string $table, string $index) use ($da
     return (int) $stmt->fetchColumn() > 0;
 };
 
+if (!$columnExists($pdo, 'users', 'mobile_verified_at')) {
+    $pdo->exec('ALTER TABLE users ADD COLUMN mobile_verified_at DATETIME NULL AFTER password_hash');
+}
 if (!$columnExists($pdo, 'users', 'is_admin')) {
     $pdo->exec('ALTER TABLE users ADD COLUMN is_admin TINYINT(1) NOT NULL DEFAULT 0 AFTER status');
 }
@@ -53,10 +56,10 @@ if ($adminMobile !== '' && $adminPassword !== '') {
     $stmt->execute(['mobile' => $adminMobile]);
     $existingId = $stmt->fetchColumn();
     if ($existingId) {
-        $stmt = $pdo->prepare('UPDATE users SET is_admin = 1, status = \'active\', updated_at = NOW() WHERE id = :id');
+        $stmt = $pdo->prepare('UPDATE users SET is_admin = 1, status = \'active\', mobile_verified_at = COALESCE(mobile_verified_at, NOW()), updated_at = NOW() WHERE id = :id');
         $stmt->execute(['id' => $existingId]);
     } else {
-        $stmt = $pdo->prepare('INSERT INTO users (name, mobile, email, password_hash, status, is_admin, created_at, updated_at) VALUES (:name, :mobile, NULL, :password_hash, \'active\', 1, NOW(), NOW())');
+        $stmt = $pdo->prepare('INSERT INTO users (name, mobile, email, password_hash, mobile_verified_at, status, is_admin, created_at, updated_at) VALUES (:name, :mobile, NULL, :password_hash, NOW(), \'active\', 1, NOW(), NOW())');
         $stmt->execute([
             'name' => 'مدیر گپ‌هوش',
             'mobile' => $adminMobile,
@@ -64,6 +67,10 @@ if ($adminMobile !== '' && $adminPassword !== '') {
         ]);
     }
 }
+
+@mkdir(__DIR__ . '/storage/backups', 0775, true);
+@mkdir(__DIR__ . '/storage/logs', 0775, true);
+@mkdir(__DIR__ . '/storage/cache', 0775, true);
 
 echo "GapHoosh is ready. MySQL database created/updated.\n";
 if ($adminMobile !== '') {

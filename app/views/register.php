@@ -5,17 +5,24 @@
             <span>گپ‌هوش</span>
         </a>
         <h1>ثبت‌نام در گپ‌هوش</h1>
-        <p>شماره موبایل اجباری است. ایمیل اختیاری است و می‌توانی خالی بگذاری.</p>
+        <p>شماره موبایل اجباری است و با کد یکبارمصرف ملی‌پیامک تأیید می‌شود. ایمیل اختیاری است.</p>
 
         <?php if (!empty($error)): ?><div class="alert error"><?= h($error) ?></div><?php endif; ?>
 
-        <form method="post" action="<?= h(public_url('register')) ?>" class="form-card grid-form">
+        <form method="post" action="<?= h(public_url('register')) ?>" class="form-card grid-form" id="registerForm" data-base-url="<?= h(public_url('')) ?>">
             <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
             <label>نام و نام خانوادگی
                 <input name="name" autocomplete="name" required placeholder="مثلاً شایان" value="<?= h($old['name'] ?? '') ?>">
             </label>
             <label>شماره موبایل
-                <input name="mobile" inputmode="tel" autocomplete="tel" required placeholder="09123456789" value="<?= h($old['mobile'] ?? '') ?>">
+                <span class="input-with-action">
+                    <input name="mobile" id="registerMobile" inputmode="tel" autocomplete="tel" required placeholder="09123456789" value="<?= h($old['mobile'] ?? '') ?>">
+                    <button class="btn ghost small" type="button" id="sendOtpBtn">ارسال کد</button>
+                </span>
+                <small class="field-hint" id="otpStatus">کد تأیید فقط چند دقیقه اعتبار دارد.</small>
+            </label>
+            <label>کد تأیید پیامکی
+                <input name="otp_code" inputmode="numeric" autocomplete="one-time-code" required placeholder="کد ارسال‌شده به موبایل">
             </label>
             <label>ایمیل <span class="optional">اختیاری</span>
                 <input name="email" type="email" autocomplete="email" placeholder="you@example.com" value="<?= h($old['email'] ?? '') ?>">
@@ -23,6 +30,7 @@
             <label>رمز عبور
                 <input name="password" type="password" autocomplete="new-password" required placeholder="حداقل ۸ کاراکتر">
             </label>
+            <p class="form-note span-2">با ثبت‌نام، <a href="<?= h(public_url('terms')) ?>">قوانین استفاده</a> و <a href="<?= h(public_url('privacy')) ?>">حریم خصوصی</a> گپ‌هوش را می‌پذیری.</p>
             <button class="btn primary full span-2" type="submit">ساخت حساب</button>
         </form>
         <p class="switch-link">قبلاً ثبت‌نام کردی؟ <a href="<?= h(public_url('login')) ?>">وارد شو</a></p>

@@ -1,6 +1,6 @@
 {
   "name": "gaphoosh-ai",
-  "version": "4.1.0",
+  "version": "5.0.0",
   "private": true,
   "description": "Local asset pipeline for GapHoosh Persian AI chat app",
   "scripts": {
