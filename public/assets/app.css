@@ -49,3 +49,185 @@
 .legal-meta { color: #64748b; font-size: .9rem; }
 .admin-extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 @media (max-width: 900px) { .admin-extra-grid { grid-template-columns: 1fr; } .input-with-action { flex-direction: column; } }
+
+.register-shell {
+    align-items: start;
+    padding-top: 42px;
+    padding-bottom: 42px;
+}
+
+.register-card {
+    width: min(100%, 760px);
+    background:
+        radial-gradient(circle at top right, rgba(17, 183, 232, .14), transparent 34%),
+        radial-gradient(circle at left bottom, rgba(91, 66, 243, .11), transparent 30%),
+        #fff;
+    border: 1px solid var(--line);
+    border-radius: 34px;
+    box-shadow: 0 28px 80px rgba(16, 24, 40, .11);
+    padding: 32px;
+}
+
+.register-brand {
+    display: grid;
+    gap: 20px;
+    justify-items: center;
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.register-heading {
+    display: grid;
+    gap: 8px;
+    justify-items: center;
+}
+
+.auth-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(91, 66, 243, .16);
+    background: #eef2ff;
+    color: var(--primary2);
+    border-radius: 999px;
+    padding: .34rem .8rem;
+    font-weight: 900;
+    font-size: .82rem;
+}
+
+.register-heading h1 {
+    margin: 0;
+    font-size: clamp(1.75rem, 3.5vw, 2.45rem);
+    letter-spacing: -.04em;
+    color: #0b1220;
+}
+
+.register-heading p {
+    margin: 0;
+    color: var(--muted);
+    max-width: 560px;
+}
+
+.register-form {
+    display: grid;
+    gap: 18px;
+}
+
+.form-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    background: rgba(248, 250, 255, .78);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 18px;
+}
+
+.section-label {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 4px;
+}
+
+.section-label strong {
+    color: var(--primary);
+    font-size: 1.02rem;
+}
+
+.section-label span {
+    color: var(--muted);
+    font-size: .86rem;
+}
+
+.otp-box {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: start;
+    background: linear-gradient(135deg, #f7fbff, #f6f3ff);
+    border: 1px solid rgba(91, 66, 243, .15);
+    border-radius: 26px;
+    padding: 20px;
+}
+
+.otp-box strong {
+    color: var(--primary);
+}
+
+.otp-box p {
+    margin: 5px 0 8px;
+    color: var(--muted);
+    font-size: .92rem;
+}
+
+.otp-send-btn {
+    min-width: 150px;
+    white-space: nowrap;
+    background: #fff;
+    border-color: rgba(91, 66, 243, .22);
+}
+
+.otp-code-field {
+    grid-column: 1 / -1;
+}
+
+.field-hint {
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.field-hint.ok {
+    color: var(--ok);
+}
+
+.field-hint.bad {
+    color: var(--danger);
+}
+
+.form-note {
+    margin: 0;
+    color: var(--muted);
+    text-align: center;
+    font-size: .92rem;
+}
+
+.form-note a {
+    color: var(--primary2);
+    font-weight: 900;
+}
+
+.register-submit {
+    min-height: 52px;
+    font-size: 1rem;
+}
+
+@media (max-width: 720px) {
+    .register-shell {
+        padding: 18px;
+        align-items: stretch;
+    }
+
+    .register-card {
+        padding: 22px;
+        border-radius: 26px;
+    }
+
+    .form-section,
+    .otp-box {
+        grid-template-columns: 1fr;
+        padding: 16px;
+    }
+
+    .section-label {
+        display: grid;
+        justify-items: start;
+    }
+
+    .otp-send-btn {
+        width: 100%;
+        min-height: 48px;
+    }
+}
