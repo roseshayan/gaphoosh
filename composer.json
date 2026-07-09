@@ -1,0 +1,31 @@
+{
+  "name": "gaphoosh/persian-ai-chat",
+  "description": "گپ‌هوش - Persian AI chat app powered by Dahl inference API",
+  "type": "project",
+  "require": {
+    "php": ">=8.1",
+    "ext-pdo": "*",
+    "ext-pdo_mysql": "*",
+    "ext-curl": "*",
+    "ext-json": "*",
+    "vlucas/phpdotenv": "^5.6.4"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/"
+    },
+    "files": [
+      "app/helpers.php"
+    ]
+  },
+  "scripts": {
+    "post-install-cmd": [
+      "@php -r \"if (!file_exists('.env')) copy('.env.example', '.env');\""
+    ],
+    "check": "php scripts/check.php"
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true
+  }
+}
